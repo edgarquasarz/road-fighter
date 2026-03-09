@@ -8,6 +8,36 @@ const gameOverEl = document.getElementById('game-over');
 const finalScoreEl = document.getElementById('final-score');
 const restartBtn = document.getElementById('restart-btn');
 
+// Cargar sprites
+const sprites = {
+    player: new Image(),
+    obstacleCarBlue: new Image(),
+    obstacleCarGrey: new Image(),
+    obstacleCone: new Image(),
+    obstacleBarrier: new Image()
+};
+
+let spritesLoaded = 0;
+const totalSprites = Object.keys(sprites).length;
+
+function onSpriteLoad() {
+    spritesLoaded++;
+    if (spritesLoaded === totalSprites) {
+        console.log('Sprites loaded:', totalSprites);
+    }
+}
+
+sprites.player.onload = onSpriteLoad;
+sprites.player.src = 'assets/sprites/player_car.png';
+sprites.obstacleCarBlue.onload = onSpriteLoad;
+sprites.obstacleCarBlue.src = 'assets/sprites/obstacle_car_blue.png';
+sprites.obstacleCarGrey.onload = onSpriteLoad;
+sprites.obstacleCarGrey.src = 'assets/sprites/obstacle_car_grey.png';
+sprites.obstacleCone.onload = onSpriteLoad;
+sprites.obstacleCone.src = 'assets/sprites/obstacle_cone.png';
+sprites.obstacleBarrier.onload = onSpriteLoad;
+sprites.obstacleBarrier.src = 'assets/sprites/obstacle_barrier.png';
+
 // Ajustar canvas al contenedor
 function resizeCanvas() {
     const container = document.getElementById('game-container');
@@ -233,58 +263,69 @@ function drawPlayer() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.fillRect(x + 5, y + 5, PLAYER_WIDTH, PLAYER_HEIGHT);
     
-    // Cuerpo del coche (rojo)
-    ctx.fillStyle = '#ff3333';
-    ctx.fillRect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
-    
-    // Techo
-    ctx.fillStyle = '#cc0000';
-    ctx.fillRect(x + 5, y + 15, PLAYER_WIDTH - 10, PLAYER_HEIGHT - 30);
-    
-    // Parabrisas
-    ctx.fillStyle = '#88ccff';
-    ctx.fillRect(x + 7, y + 20, PLAYER_WIDTH - 14, 12);
-    
-    // Luces
-    ctx.fillStyle = '#ffff00';
-    ctx.fillRect(x + 3, y + 3, 8, 5);
-    ctx.fillRect(x + PLAYER_WIDTH - 11, y + 3, 8, 5);
+    // Dibujar sprite si está cargado
+    if (sprites.player.complete && sprites.player.naturalHeight > 0) {
+        ctx.drawImage(sprites.player, x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
+    } else {
+        // Fallback: rectángulo
+        ctx.fillStyle = '#ff3333';
+        ctx.fillRect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
+        ctx.fillStyle = '#cc0000';
+        ctx.fillRect(x + 5, y + 15, PLAYER_WIDTH - 10, PLAYER_HEIGHT - 30);
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(x + 7, y + 20, PLAYER_WIDTH - 14, 12);
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(x + 3, y + 3, 8, 5);
+        ctx.fillRect(x + PLAYER_WIDTH - 11, y + 3, 8, 5);
+    }
 }
 
 // Dibujar obstáculos
 function drawObstacles() {
     obstacles.forEach(obs => {
+        let sprite = null;
+        
         switch (obs.type) {
             case 'car':
-                // Coche azul parado
-                ctx.fillStyle = '#3366ff';
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                ctx.fillStyle = '#2255dd';
-                ctx.fillRect(obs.x + 5, obs.y + 15, obs.width - 10, obs.height - 30);
+                // Alternar entre azul y gris
+                sprite = (obs.x % 2 === 0) ? sprites.obstacleCarBlue : sprites.obstacleCarGrey;
                 break;
             case 'cone':
-                // Cono naranja
-                ctx.fillStyle = '#ff6600';
-                ctx.beginPath();
-                ctx.moveTo(obs.x + obs.width / 2, obs.y);
-                ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-                ctx.lineTo(obs.x, obs.y + obs.height);
-                ctx.closePath();
-                ctx.fill();
-                // Franjas blancas
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(obs.x + 10, obs.y + 15, obs.width - 20, 8);
-                ctx.fillRect(obs.x + 5, obs.y + 35, obs.width - 10, 8);
+                sprite = sprites.obstacleCone;
                 break;
             case 'barrier':
-                // Barrera blanca/roja
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                ctx.fillStyle = '#ff0000';
-                for (let i = 0; i < 4; i++) {
-                    ctx.fillRect(obs.x, obs.y + i * 15 + 5, obs.width, 10);
-                }
+                sprite = sprites.obstacleBarrier;
                 break;
+        }
+        
+        // Dibujar sprite si está cargado
+        if (sprite && sprite.complete && sprite.naturalHeight > 0) {
+            ctx.drawImage(sprite, obs.x, obs.y, obs.width, obs.height);
+        } else {
+            // Fallback: rectángulos
+            switch (obs.type) {
+                case 'car':
+                    ctx.fillStyle = '#3366ff';
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    break;
+                case 'cone':
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x + obs.width / 2, obs.y);
+                    ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+                    ctx.lineTo(obs.x, obs.y + obs.height);
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+                case 'barrier':
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    ctx.fillStyle = '#ff0000';
+                    for (let i = 0; i < 4; i++) {
+                        ctx.fillRect(obs.x, obs.y + i * 15 + 5, obs.width, 10);
+                    }
+                    break;
+            }
         }
     });
 }
