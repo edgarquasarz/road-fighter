@@ -1,9 +1,10 @@
-// Road Fighter - Fase 1 (Core Loop MVP)
-// Canvas + scroll infinito + jugador + obstáculos + colisiones + score
+// Road Fighter - Fase 2 (Polish)
+// Core Loop + Gasolina + Enemigos + Aceite + Velocidad Progresiva
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
+const gasEl = document.getElementById('gas');
 const gameOverEl = document.getElementById('game-over');
 const finalScoreEl = document.getElementById('final-score');
 const restartBtn = document.getElementById('restart-btn');
@@ -14,10 +15,13 @@ const sprites = {
     obstacleCarBlue: new Image(),
     obstacleCarGrey: new Image(),
     obstacleCone: new Image(),
-    obstacleBarrier: new Image()
+    obstacleBarrier: new Image(),
+    pickupGasoline: new Image(),
+    enemyCarBlue: new Image(),
+    enemyCarWhite: new Image(),
+    oilSlick: new Image()
 };
 
-// Enable transparent images
 Object.values(sprites).forEach(img => img.crossOrigin = 'anonymous');
 
 let spritesLoaded = 0;
@@ -38,8 +42,16 @@ sprites.obstacleCone.onload = onSpriteLoad;
 sprites.obstacleCone.src = 'assets/sprites/obstacle_cone.png';
 sprites.obstacleBarrier.onload = onSpriteLoad;
 sprites.obstacleBarrier.src = 'assets/sprites/obstacle_barrier.png';
+sprites.pickupGasoline.onload = onSpriteLoad;
+sprites.pickupGasoline.src = 'assets/sprites/pickup_gasoline.png';
+sprites.enemyCarBlue.onload = onSpriteLoad;
+sprites.enemyCarBlue.src = 'assets/sprites/enemy_car_blue.png';
+sprites.enemyCarWhite.onload = onSpriteLoad;
+sprites.enemyCarWhite.src = 'assets/sprites/enemy_car_white.png';
+sprites.oilSlick.onload = onSpriteLoad;
+sprites.oilSlick.src = 'assets/sprites/oil_slick.png';
 
-// Ajustar canvas al contenedor
+// Ajustar canvas
 function resizeCanvas() {
     const container = document.getElementById('game-container');
     canvas.width = container.clientWidth;
@@ -48,23 +60,37 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// Constantes del juego
+// Constantes
 const ROAD_WIDTH = 0.7;
 const LANE_COUNT = 3;
 const PLAYER_WIDTH = 64;
 const PLAYER_HEIGHT = 96;
-const OBSTACLE_WIDTH = 64;
-const OBSTACLE_HEIGHT = 96;
-const BASE_SCROLL_SPEED = 300;
+const OBSTACLE_WIDTH = 48;
+const OBSTACLE_HEIGHT = 48;
+const PICKUP_SIZE = 32;
+const ENEMY_WIDTH = 48;
+const ENEMY_HEIGHT = 48;
+const OIL_WIDTH = 64;
+const OIL_HEIGHT = 64;
+const BASE_SCROLL_SPEED = 250;
+const MAX_GAS = 100;
 
 // Estado del juego
 let gameState = {
     running: false,
     score: 0,
+    gas: MAX_GAS,
     scrollOffset: 0,
     lastObstacleTime: 0,
+    lastEnemyTime: 0,
+    lastPickupTime: 0,
+    lastOilTime: 0,
     obstacleInterval: 1500,
-    scrollSpeed: BASE_SCROLL_SPEED
+    enemyInterval: 3000,
+    pickupInterval: 8000,
+    oilInterval: 10000,
+    scrollSpeed: BASE_SCROLL_SPEED,
+    gameOverReason: ''
 };
 
 // Jugador
@@ -72,33 +98,39 @@ let player = {
     x: 0,
     y: 0,
     targetX: 0,
-    lane: 1
+    lane: 1,
+    slipping: false,
+    slipTimer: 0
 };
 
-// Obstáculos
+// Entidades
 let obstacles = [];
-
-// Partículas para efecto de velocidad
+let enemies = [];
+let pickups = [];
+let oilSlicks = [];
 let particles = [];
-
-// Controles
-let keys = {
-    left: false,
-    right: false
-};
-
-// Road markings
 let roadMarkings = [];
 
-// Inicializar juego
+// Controles
+let keys = { left: false, right: false };
+
+// Inicializar
 function init() {
-    console.log('Init game...');
+    console.log('Init game Phase 2...');
     gameState.running = true;
     gameState.score = 0;
+    gameState.gas = MAX_GAS;
     gameState.scrollOffset = 0;
     gameState.lastObstacleTime = Date.now();
+    gameState.lastEnemyTime = Date.now();
+    gameState.lastPickupTime = Date.now();
+    gameState.lastOilTime = Date.now();
     gameState.obstacleInterval = 1500;
+    gameState.enemyInterval = 3000;
+    gameState.pickupInterval = 8000;
+    gameState.oilInterval = 10000;
     gameState.scrollSpeed = BASE_SCROLL_SPEED;
+    gameState.gameOverReason = '';
     
     const roadWidth = canvas.width * ROAD_WIDTH;
     const laneWidth = roadWidth / LANE_COUNT;
@@ -106,17 +138,20 @@ function init() {
     player.y = canvas.height - PLAYER_HEIGHT - 50;
     player.targetX = player.x;
     player.lane = 1;
+    player.slipping = false;
+    player.slipTimer = 0;
     
     obstacles = [];
+    enemies = [];
+    pickups = [];
+    oilSlicks = [];
     particles = [];
     roadMarkings = [];
     
-    // Generar líneas de carretera iniciales
     for (let i = 0; i < 15; i++) {
         roadMarkings.push({ y: i * 80 });
     }
     
-    // Generar partículas iniciales
     for (let i = 0; i < 20; i++) {
         particles.push({
             x: Math.random() * canvas.width,
@@ -128,13 +163,23 @@ function init() {
     
     lastTime = null;
     gameOverEl.classList.add('hidden');
-    updateScore();
+    updateUI();
     console.log('Starting game loop...');
     requestAnimationFrame(gameLoop);
 }
 
-// Actualizar posición del jugador
+// Actualizar jugador
 function updatePlayer(dt) {
+    if (player.slipping) {
+        player.slipTimer -= dt;
+        if (player.slipTimer <= 0) {
+            player.slipping = false;
+        }
+        // Durante slip, mover aleatoriamente
+        player.x += (Math.random() - 0.5) * 10;
+        return;
+    }
+    
     const roadWidth = canvas.width * ROAD_WIDTH;
     const laneWidth = roadWidth / LANE_COUNT;
     const roadLeft = (canvas.width - roadWidth) / 2;
@@ -153,7 +198,7 @@ function updatePlayer(dt) {
     player.x = Math.max(roadLeft, Math.min(roadLeft + roadWidth - PLAYER_WIDTH, player.x));
 }
 
-// Generar obstáculos
+// Generar obstáculo estático
 function spawnObstacle() {
     const roadWidth = canvas.width * ROAD_WIDTH;
     const laneWidth = roadWidth / LANE_COUNT;
@@ -164,12 +209,8 @@ function spawnObstacle() {
     
     const types = ['car', 'cone', 'barrier'];
     const type = types[Math.floor(Math.random() * types.length)];
-    
-    // Assign car color permanently when spawned (no flickering)
     let carColor = null;
-    if (type === 'car') {
-        carColor = Math.random() < 0.5 ? 'blue' : 'grey';
-    }
+    if (type === 'car') carColor = Math.random() < 0.5 ? 'blue' : 'grey';
     
     obstacles.push({
         x: x,
@@ -181,44 +222,151 @@ function spawnObstacle() {
     });
 }
 
-// Actualizar obstáculos
-function updateObstacles(dt) {
+// Generar enemigo móvil
+function spawnEnemy() {
+    const roadWidth = canvas.width * ROAD_WIDTH;
+    const laneWidth = roadWidth / LANE_COUNT;
+    const roadLeft = (canvas.width - roadWidth) / 2;
+    
+    const lane = Math.floor(Math.random() * LANE_COUNT);
+    const x = roadLeft + laneWidth * lane + (laneWidth - ENEMY_WIDTH) / 2;
+    
+    enemies.push({
+        x: x,
+        y: -ENEMY_HEIGHT,
+        lane: lane,
+        targetLane: lane,
+        speed: 50 + Math.random() * 50,
+        color: Math.random() < 0.5 ? 'blue' : 'white',
+        width: ENEMY_WIDTH,
+        height: ENEMY_HEIGHT,
+        changeTimer: 0
+    });
+}
+
+// Generar pickup de gasolina
+function spawnPickup() {
+    const roadWidth = canvas.width * ROAD_WIDTH;
+    const laneWidth = roadWidth / LANE_COUNT;
+    const roadLeft = (canvas.width - roadWidth) / 2;
+    
+    const lane = Math.floor(Math.random() * LANE_COUNT);
+    const x = roadLeft + laneWidth * lane + (laneWidth - PICKUP_SIZE) / 2;
+    
+    pickups.push({
+        x: x,
+        y: -PICKUP_SIZE,
+        width: PICKUP_SIZE,
+        height: PICKUP_SIZE
+    });
+}
+
+// Generar zona de aceite
+function spawnOilSlick() {
+    const roadWidth = canvas.width * ROAD_WIDTH;
+    const laneWidth = roadWidth / LANE_COUNT;
+    const roadLeft = (canvas.width - roadWidth) / 2;
+    
+    const lane = Math.floor(Math.random() * LANE_COUNT);
+    const x = roadLeft + laneWidth * lane + (laneWidth - OIL_WIDTH) / 2;
+    
+    oilSlicks.push({
+        x: x,
+        y: -OIL_HEIGHT,
+        width: OIL_WIDTH,
+        height: OIL_HEIGHT
+    });
+}
+
+// Actualizar entidades
+function updateEntities(dt) {
     const scrollDelta = gameState.scrollSpeed * dt;
     gameState.scrollOffset += scrollDelta;
-    // Score increases based on distance traveled (not dt)
     gameState.score += Math.floor(scrollDelta / 5);
     
+    // Gasolina baja constantemente
+    gameState.gas -= dt * 3; // 3% por segundo
+    if (gameState.gas <= 0) {
+        gameState.gameOverReason = 'Sin gasolina';
+        gameOver();
+        return;
+    }
+    
     // Mover obstáculos
-    obstacles.forEach(obs => {
-        obs.y += scrollDelta;
+    obstacles.forEach(o => o.y += scrollDelta);
+    obstacles = obstacles.filter(o => o.y < canvas.height + 100);
+    
+    // Mover enemigos (más lentos que el scroll = vienen hacia el jugador)
+    enemies.forEach(e => {
+        e.y += scrollDelta - e.speed * dt;
+        // IA: cambiar de carril ocasionalmente
+        e.changeTimer -= dt;
+        if (e.changeTimer <= 0 && Math.random() < 0.3) {
+            const roadWidth = canvas.width * ROAD_WIDTH;
+            const laneWidth = roadWidth / LANE_COUNT;
+            const roadLeft = (canvas.width - roadWidth) / 2;
+            
+            const newLane = Math.max(0, Math.min(LANE_COUNT - 1, e.lane + (Math.random() < 0.5 ? -1 : 1)));
+            e.targetLane = newLane;
+            e.changeTimer = 1 + Math.random() * 2;
+        }
+        // Interpolación suave entre carriles
+        const targetX = roadLeft + laneWidth * e.targetLane + (laneWidth - ENEMY_WIDTH) / 2;
+        e.x += (targetX - e.x) * 0.05;
+        e.lane = e.targetLane;
     });
+    enemies = enemies.filter(e => e.y < canvas.height + 100);
     
-    // Eliminar obstáculos fuera de pantalla
-    obstacles = obstacles.filter(obs => obs.y < canvas.height + 100);
+    // Mover pickups
+    pickups.forEach(p => p.y += scrollDelta);
+    pickups = pickups.filter(p => p.y < canvas.height + 100);
     
-    // Generar nuevos obstáculos
+    // Mover aceite
+    oilSlicks.forEach(o => o.y += scrollDelta);
+    oilSlicks = oilSlicks.filter(o => o.y < canvas.height + 100);
+    
+    // Generar entidades
     const now = Date.now();
+    
     if (now - gameState.lastObstacleTime > gameState.obstacleInterval) {
         spawnObstacle();
         gameState.lastObstacleTime = now;
-        
-        // Aumentar dificultad
-        if (gameState.score > 500) {
-            gameState.obstacleInterval = 1200;
-            gameState.scrollSpeed = 350;
-        }
-        if (gameState.score > 1000) {
-            gameState.obstacleInterval = 900;
-            gameState.scrollSpeed = 400;
-        }
-        if (gameState.score > 2000) {
-            gameState.obstacleInterval = 700;
-            gameState.scrollSpeed = 500;
-        }
+    }
+    
+    if (now - gameState.lastEnemyTime > gameState.enemyInterval) {
+        spawnEnemy();
+        gameState.lastEnemyTime = now;
+    }
+    
+    if (now - gameState.lastPickupTime > gameState.pickupInterval) {
+        spawnPickup();
+        gameState.lastPickupTime = now;
+    }
+    
+    if (now - gameState.lastOilTime > gameState.oilInterval) {
+        spawnOilSlick();
+        gameState.lastOilTime = now;
+    }
+    
+    // Aumentar dificultad
+    if (gameState.score > 500) {
+        gameState.obstacleInterval = 1200;
+        gameState.enemyInterval = 2500;
+        gameState.scrollSpeed = 300;
+    }
+    if (gameState.score > 1000) {
+        gameState.obstacleInterval = 900;
+        gameState.enemyInterval = 2000;
+        gameState.scrollSpeed = 350;
+    }
+    if (gameState.score > 2000) {
+        gameState.obstacleInterval = 700;
+        gameState.enemyInterval = 1500;
+        gameState.scrollSpeed = 420;
     }
 }
 
-// Actualizar partículas (efecto de velocidad)
+// Actualizar partículas
 function updateParticles(dt) {
     particles.forEach(p => {
         p.y += (p.speed + gameState.scrollSpeed) * dt;
@@ -229,24 +377,51 @@ function updateParticles(dt) {
     });
 }
 
-// Colisiones AABB
+// Colisiones
 function checkCollisions() {
     const px = player.x + 5;
     const py = player.y + 5;
     const pw = PLAYER_WIDTH - 10;
     const ph = PLAYER_HEIGHT - 10;
     
+    // Obstáculos
     for (let obs of obstacles) {
-        const ox = obs.x + 3;
-        const oy = obs.y + 3;
-        const ow = obs.width - 6;
-        const oh = obs.height - 6;
-        
-        if (px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy) {
-            return true;
+        if (px < obs.x + obs.width - 3 && px + pw > obs.x + 3 &&
+            py < obs.y + obs.height - 3 && py + ph > obs.y + 3) {
+            return 'obstacle';
         }
     }
-    return false;
+    
+    // Enemigos
+    for (let e of enemies) {
+        if (px < e.x + e.width - 3 && px + pw > e.x + 3 &&
+            py < e.y + e.height - 3 && py + ph > e.y + 3) {
+            return 'enemy';
+        }
+    }
+    
+    // Pickups de gasolina
+    for (let i = pickups.length - 1; i >= 0; i--) {
+        const p = pickups[i];
+        if (px < p.x + p.width && px + pw > p.x &&
+            py < p.y + p.height && py + ph > p.y) {
+            gameState.gas = Math.min(MAX_GAS, gameState.gas + 25);
+            pickups.splice(i, 1);
+        }
+    }
+    
+    // Aceite
+    for (let o of oilSlicks) {
+        if (px < o.x + o.width && px + pw > o.x &&
+            py < o.y + o.height && py + ph > o.y) {
+            if (!player.slipping) {
+                player.slipping = true;
+                player.slipTimer = 0.5;
+            }
+        }
+    }
+    
+    return null;
 }
 
 // Dibujar carretera
@@ -254,32 +429,27 @@ function drawRoad() {
     const roadWidth = canvas.width * ROAD_WIDTH;
     const roadLeft = (canvas.width - roadWidth) / 2;
     
-    // Césped
     ctx.fillStyle = '#2d5a27';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Asfalto
     ctx.fillStyle = '#3d3d3d';
     ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
     
-    // Bordes de la carretera
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(roadLeft - 6, 0, 6, canvas.height);
     ctx.fillRect(roadLeft + roadWidth, 0, 6, canvas.height);
     
-    // Líneas de carriles discontinuas
-    ctx.fillStyle = '#ffffff';
     const laneWidth = roadWidth / LANE_COUNT;
     
     for (let i = 1; i < LANE_COUNT; i++) {
         const x = roadLeft + laneWidth * i - 2;
-        roadMarkings.forEach(marking => {
-            let y = (marking.y + gameState.scrollOffset * 1.5) % (canvas.height + 60);
+        roadMarkings.forEach(m => {
+            let y = (m.y + gameState.scrollOffset * 1.5) % (canvas.height + 60);
             ctx.fillRect(x, y - 30, 4, 25);
         });
     }
     
-    // Efecto de velocidad - líneas en los bordes
+    // Efecto de velocidad
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     for (let i = 0; i < 8; i++) {
         let y = ((i * 80) + gameState.scrollOffset * 2) % (canvas.height + 80) - 40;
@@ -298,84 +468,85 @@ function drawParticles() {
     });
 }
 
+// Dibujar sprites helper
+function drawSprite(sprite, x, y, w, h, fallbackColor) {
+    if (sprite && sprite.complete && sprite.naturalHeight > 0) {
+        ctx.drawImage(sprite, x, y, w, h);
+    } else {
+        ctx.fillStyle = fallbackColor;
+        ctx.fillRect(x, y, w, h);
+    }
+}
+
 // Dibujar jugador
 function drawPlayer() {
     const x = player.x;
     const y = player.y;
     
-    // Sombra
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(x + 5, y + 5, PLAYER_WIDTH, PLAYER_HEIGHT);
-    
-    // Dibujar sprite si está cargado
-    if (sprites.player.complete && sprites.player.naturalHeight > 0) {
-        ctx.drawImage(sprites.player, x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
-    } else {
-        // Fallback
-        ctx.fillStyle = '#ff3333';
-        ctx.fillRect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
-        ctx.fillStyle = '#cc0000';
-        ctx.fillRect(x + 5, y + 15, PLAYER_WIDTH - 10, PLAYER_HEIGHT - 30);
+    // Efecto slip
+    if (player.slipping) {
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.translate(x + PLAYER_WIDTH/2, y + PLAYER_HEIGHT/2);
+        ctx.rotate(Math.sin(Date.now() / 50) * 0.3);
+        ctx.translate(-(x + PLAYER_WIDTH/2), -(y + PLAYER_HEIGHT/2));
     }
+    
+    drawSprite(sprites.player, x, y, PLAYER_WIDTH, PLAYER_HEIGHT, '#ff3333');
+    
+    if (player.slipping) ctx.restore();
 }
 
 // Dibujar obstáculos
 function drawObstacles() {
     obstacles.forEach(obs => {
         let sprite = null;
-        
         switch (obs.type) {
             case 'car':
-                // Use the assigned color (no flickering)
                 sprite = (obs.carColor === 'blue') ? sprites.obstacleCarBlue : sprites.obstacleCarGrey;
                 break;
-            case 'cone':
-                sprite = sprites.obstacleCone;
-                break;
-            case 'barrier':
-                sprite = sprites.obstacleBarrier;
-                break;
+            case 'cone': sprite = sprites.obstacleCone; break;
+            case 'barrier': sprite = sprites.obstacleBarrier; break;
         }
-        
-        if (sprite && sprite.complete && sprite.naturalHeight > 0) {
-            ctx.drawImage(sprite, obs.x, obs.y, obs.width, obs.height);
-        } else {
-            // Fallback
-            switch (obs.type) {
-                case 'car':
-                    ctx.fillStyle = '#3366ff';
-                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                    break;
-                case 'cone':
-                    ctx.fillStyle = '#ff6600';
-                    ctx.beginPath();
-                    ctx.moveTo(obs.x + obs.width / 2, obs.y);
-                    ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-                    ctx.lineTo(obs.x, obs.y + obs.height);
-                    ctx.closePath();
-                    ctx.fill();
-                    break;
-                case 'barrier':
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                    ctx.fillStyle = '#ff0000';
-                    for (let i = 0; i < 4; i++) {
-                        ctx.fillRect(obs.x, obs.y + i * 15 + 5, obs.width, 10);
-                    }
-                    break;
-            }
-        }
+        drawSprite(sprite, obs.x, obs.y, obs.width, obs.height, '#888');
     });
 }
 
-function updateScore() {
-    console.log('Score:', gameState.score);
+// Dibujar enemigos
+function drawEnemies() {
+    enemies.forEach(e => {
+        const sprite = (e.color === 'blue') ? sprites.enemyCarBlue : sprites.enemyCarWhite;
+        drawSprite(sprite, e.x, e.y, e.width, e.height, '#888');
+    });
+}
+
+// Dibujar pickups
+function drawPickups() {
+    pickups.forEach(p => {
+        drawSprite(sprites.pickupGasoline, p.x, p.y, p.width, p.height, '#ffaa00');
+    });
+}
+
+// Dibujar aceite
+function drawOilSlicks() {
+    oilSlicks.forEach(o => {
+        drawSprite(sprites.oilSlick, o.x, o.y, o.width, o.height, '#333');
+    });
+}
+
+// UI
+function updateUI() {
     scoreEl.textContent = `SCORE: ${gameState.score}m`;
+    if (gasEl) {
+        const gasPercent = Math.max(0, gameState.gas);
+        gasEl.textContent = `GAS: ${Math.floor(gasPercent)}%`;
+    }
 }
 
 function gameOver() {
     gameState.running = false;
-    finalScoreEl.textContent = `Score: ${gameState.score}m`;
+    let reason = gameState.gameOverReason || 'Chocaste';
+    finalScoreEl.textContent = `${reason} - Score: ${gameState.score}m`;
     gameOverEl.classList.remove('hidden');
 }
 
@@ -384,7 +555,6 @@ let lastTime = null;
 function gameLoop(timestamp) {
     if (!gameState.running) return;
     
-    // Primer frame
     if (lastTime === null) {
         lastTime = timestamp;
         requestAnimationFrame(gameLoop);
@@ -394,72 +564,66 @@ function gameLoop(timestamp) {
     const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
     lastTime = timestamp;
     
-    // Limpiar
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Dibujar carretera
     drawRoad();
     
-    // Actualizar
     updatePlayer(dt);
-    updateObstacles(dt);
+    updateEntities(dt);
     updateParticles(dt);
     
-    // Dibujar
     drawParticles();
+    drawOilSlicks();
+    drawPickups();
     drawObstacles();
+    drawEnemies();
     drawPlayer();
     
-    // Colisiones
-    if (checkCollisions()) {
+    const collision = checkCollisions();
+    if (collision) {
         gameOver();
         return;
     }
     
-    updateScore();
+    updateUI();
     requestAnimationFrame(gameLoop);
 }
 
-// Event listeners - Teclado
+// Event listeners
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        keys.left = true;
-    }
-    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        keys.right = true;
-    }
-    if (e.key === ' ' && !gameState.running) {
-        init();
-    }
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+    if (e.key === ' ' && !gameState.running) init();
 });
 
 document.addEventListener('keyup', (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        keys.left = false;
-    }
-    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        keys.right = false;
-    }
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
 });
 
 // Touch controls
 const touchLeft = document.getElementById('touch-left');
 const touchRight = document.getElementById('touch-right');
 
-touchLeft.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    keys.left = true;
-});
-touchLeft.addEventListener('touchend', () => keys.left = false);
+touchLeft?.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+touchLeft?.addEventListener('touchend', () => keys.left = false);
+touchRight?.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+touchRight?.addEventListener('touchend', () => keys.right = false);
 
-touchRight.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    keys.right = true;
-});
-touchRight.addEventListener('touchend', () => keys.right = false);
-
-// Restart button
 restartBtn.addEventListener('click', init);
 
-// Iniciar juego
+// Añadir HUD de gas al HTML si no existe
+function ensureGasElement() {
+    if (!document.getElementById('gas')) {
+        const hud = document.getElementById('hud');
+        if (hud) {
+            const gasEl = document.createElement('span');
+            gasEl.id = 'gas';
+            gasEl.style.marginLeft = '20px';
+            gasEl.textContent = 'GAS: 100%';
+            hud.appendChild(gasEl);
+        }
+    }
+}
+ensureGasElement();
+
 init();
