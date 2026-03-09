@@ -165,10 +165,17 @@ function spawnObstacle() {
     const types = ['car', 'cone', 'barrier'];
     const type = types[Math.floor(Math.random() * types.length)];
     
+    // Assign car color permanently when spawned (no flickering)
+    let carColor = null;
+    if (type === 'car') {
+        carColor = Math.random() < 0.5 ? 'blue' : 'grey';
+    }
+    
     obstacles.push({
         x: x,
         y: -OBSTACLE_HEIGHT,
         type: type,
+        carColor: carColor,
         width: OBSTACLE_WIDTH,
         height: OBSTACLE_HEIGHT
     });
@@ -178,7 +185,8 @@ function spawnObstacle() {
 function updateObstacles(dt) {
     const scrollDelta = gameState.scrollSpeed * dt;
     gameState.scrollOffset += scrollDelta;
-    gameState.score += Math.floor(scrollDelta / 10);
+    // Score increases based on distance traveled (not dt)
+    gameState.score += Math.floor(scrollDelta / 5);
     
     // Mover obstáculos
     obstacles.forEach(obs => {
@@ -318,7 +326,8 @@ function drawObstacles() {
         
         switch (obs.type) {
             case 'car':
-                sprite = (Math.floor(obs.y / 50) % 2 === 0) ? sprites.obstacleCarBlue : sprites.obstacleCarGrey;
+                // Use the assigned color (no flickering)
+                sprite = (obs.carColor === 'blue') ? sprites.obstacleCarBlue : sprites.obstacleCarGrey;
                 break;
             case 'cone':
                 sprite = sprites.obstacleCone;
