@@ -33,23 +33,23 @@ function onSpriteLoad() {
 }
 
 sprites.player.onload = onSpriteLoad;
-sprites.player.src = 'assets/sprites/player_car.png?v=9';
+sprites.player.src = 'assets/sprites/player_car.png?v=10';
 sprites.obstacleCarBlue.onload = onSpriteLoad;
-sprites.obstacleCarBlue.src = 'assets/sprites/obstacle_car_blue.png?v=9';
+sprites.obstacleCarBlue.src = 'assets/sprites/obstacle_car_blue.png?v=10';
 sprites.obstacleCarGrey.onload = onSpriteLoad;
-sprites.obstacleCarGrey.src = 'assets/sprites/obstacle_car_grey.png?v=9';
+sprites.obstacleCarGrey.src = 'assets/sprites/obstacle_car_grey.png?v=10';
 sprites.obstacleCone.onload = onSpriteLoad;
-sprites.obstacleCone.src = 'assets/sprites/obstacle_cone.png?v=9';
+sprites.obstacleCone.src = 'assets/sprites/obstacle_cone.png?v=10';
 sprites.obstacleBarrier.onload = onSpriteLoad;
-sprites.obstacleBarrier.src = 'assets/sprites/obstacle_barrier.png?v=9';
+sprites.obstacleBarrier.src = 'assets/sprites/obstacle_barrier.png?v=10';
 sprites.pickupGasoline.onload = onSpriteLoad;
-sprites.pickupGasoline.src = 'assets/sprites/pickup_gasoline.png?v=9';
+sprites.pickupGasoline.src = 'assets/sprites/pickup_gasoline.png?v=10';
 sprites.enemyCarBlue.onload = onSpriteLoad;
-sprites.enemyCarBlue.src = 'assets/sprites/enemy_car_blue.png?v=9';
+sprites.enemyCarBlue.src = 'assets/sprites/enemy_car_blue.png?v=10';
 sprites.enemyCarWhite.onload = onSpriteLoad;
-sprites.enemyCarWhite.src = 'assets/sprites/enemy_car_white.png?v=9';
+sprites.enemyCarWhite.src = 'assets/sprites/enemy_car_white.png?v=10';
 sprites.oilSlick.onload = onSpriteLoad;
-sprites.oilSlick.src = 'assets/sprites/oil_slick.png?v=9';
+sprites.oilSlick.src = 'assets/sprites/oil_slick.png?v=10';
 
 // Ajustar canvas
 function resizeCanvas() {
