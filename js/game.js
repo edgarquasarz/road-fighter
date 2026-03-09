@@ -536,10 +536,15 @@ function drawOilSlicks() {
 
 // UI
 function updateUI() {
-    scoreEl.textContent = `SCORE: ${gameState.score}m`;
-    if (gasEl) {
-        const gasPercent = Math.max(0, gameState.gas);
-        gasEl.textContent = `GAS: ${Math.floor(gasPercent)}%`;
+    if (!gameState.running) return;
+    try {
+        scoreEl.textContent = `SCORE: ${gameState.score}m`;
+        if (gasEl) {
+            const gasPercent = Math.max(0, gameState.gas);
+            gasEl.textContent = `GAS: ${Math.floor(gasPercent)}%`;
+        }
+    } catch(e) {
+        console.error('UI update error:', e);
     }
 }
 
@@ -555,37 +560,44 @@ let lastTime = null;
 function gameLoop(timestamp) {
     if (!gameState.running) return;
     
-    if (lastTime === null) {
+    try {
+        if (lastTime === null) {
+            lastTime = timestamp;
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+        
+        const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
         lastTime = timestamp;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawRoad();
+        
+        updatePlayer(dt);
+        updateEntities(dt);
+        updateParticles(dt);
+        
+        drawParticles();
+        drawOilSlicks();
+        drawPickups();
+        drawObstacles();
+        drawEnemies();
+        drawPlayer();
+        
+        const collision = checkCollisions();
+        if (collision) {
+            gameOver();
+            return;
+        }
+        
+        updateUI();
+    } catch(e) {
+        console.error('Game loop error:', e);
+    }
+    
+    if (gameState.running) {
         requestAnimationFrame(gameLoop);
-        return;
     }
-    
-    const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
-    lastTime = timestamp;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawRoad();
-    
-    updatePlayer(dt);
-    updateEntities(dt);
-    updateParticles(dt);
-    
-    drawParticles();
-    drawOilSlicks();
-    drawPickups();
-    drawObstacles();
-    drawEnemies();
-    drawPlayer();
-    
-    const collision = checkCollisions();
-    if (collision) {
-        gameOver();
-        return;
-    }
-    
-    updateUI();
-    requestAnimationFrame(gameLoop);
 }
 
 // Event listeners
