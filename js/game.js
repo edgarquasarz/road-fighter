@@ -51,10 +51,10 @@ window.addEventListener('resize', resizeCanvas);
 // Constantes del juego
 const ROAD_WIDTH = 0.7;
 const LANE_COUNT = 3;
-const PLAYER_WIDTH = 50;
-const PLAYER_HEIGHT = 80;
-const OBSTACLE_WIDTH = 45;
-const OBSTACLE_HEIGHT = 70;
+const PLAYER_WIDTH = 64;
+const PLAYER_HEIGHT = 96;
+const OBSTACLE_WIDTH = 64;
+const OBSTACLE_HEIGHT = 96;
 const BASE_SCROLL_SPEED = 300;
 
 // Estado del juego
