@@ -17,14 +17,15 @@ const sprites = {
     obstacleBarrier: new Image()
 };
 
+// Enable transparent images
+Object.values(sprites).forEach(img => img.crossOrigin = 'anonymous');
+
 let spritesLoaded = 0;
 const totalSprites = Object.keys(sprites).length;
 
 function onSpriteLoad() {
     spritesLoaded++;
-    if (spritesLoaded === totalSprites) {
-        console.log('Sprites loaded:', totalSprites);
-    }
+    console.log('Sprite loaded:', spritesLoaded, '/', totalSprites);
 }
 
 sprites.player.onload = onSpriteLoad;
@@ -48,14 +49,13 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // Constantes del juego
-const ROAD_WIDTH = 0.7; // 70% del ancho del canvas
+const ROAD_WIDTH = 0.7;
 const LANE_COUNT = 3;
 const PLAYER_WIDTH = 50;
 const PLAYER_HEIGHT = 80;
 const OBSTACLE_WIDTH = 45;
 const OBSTACLE_HEIGHT = 70;
-const PLAYER_SPEED = 8;
-const BASE_SCROLL_SPEED = 200;
+const BASE_SCROLL_SPEED = 300;
 
 // Estado del juego
 let gameState = {
@@ -72,11 +72,14 @@ let player = {
     x: 0,
     y: 0,
     targetX: 0,
-    lane: 1 // 0, 1, 2 (centro)
+    lane: 1
 };
 
 // Obstáculos
 let obstacles = [];
+
+// Partículas para efecto de velocidad
+let particles = [];
 
 // Controles
 let keys = {
@@ -84,7 +87,7 @@ let keys = {
     right: false
 };
 
-// Road markings (líneas de la carretera)
+// Road markings
 let roadMarkings = [];
 
 // Inicializar juego
@@ -92,7 +95,7 @@ function init() {
     gameState.running = true;
     gameState.score = 0;
     gameState.scrollOffset = 0;
-    gameState.lastObstacleTime = 0;
+    gameState.lastObstacleTime = Date.now();
     gameState.obstacleInterval = 1500;
     gameState.scrollSpeed = BASE_SCROLL_SPEED;
     
@@ -104,16 +107,25 @@ function init() {
     player.lane = 1;
     
     obstacles = [];
+    particles = [];
     roadMarkings = [];
     
     // Generar líneas de carretera iniciales
-    for (let i = 0; i < 10; i++) {
-        roadMarkings.push({
-            y: i * 100,
-            type: 'center'
+    for (let i = 0; i < 15; i++) {
+        roadMarkings.push({ y: i * 80 });
+    }
+    
+    // Generar partículas iniciales
+    for (let i = 0; i < 20; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            speed: 100 + Math.random() * 200,
+            size: 2 + Math.random() * 3
         });
     }
     
+    lastTime = performance.now();
     gameOverEl.classList.add('hidden');
     updateScore();
     requestAnimationFrame(gameLoop);
@@ -125,7 +137,6 @@ function updatePlayer(dt) {
     const laneWidth = roadWidth / LANE_COUNT;
     const roadLeft = (canvas.width - roadWidth) / 2;
     
-    // Movimiento suave entre carriles
     if (keys.left && player.lane > 0) {
         player.lane--;
         keys.left = false;
@@ -135,13 +146,8 @@ function updatePlayer(dt) {
         keys.right = false;
     }
     
-    // Calcular posición objetivo del carril
     player.targetX = roadLeft + laneWidth * player.lane + (laneWidth - PLAYER_WIDTH) / 2;
-    
-    // Interpolación suave
-    player.x += (player.targetX - player.x) * 0.15;
-    
-    // Límites de la carretera
+    player.x += (player.targetX - player.x) * 0.2;
     player.x = Math.max(roadLeft, Math.min(roadLeft + roadWidth - PLAYER_WIDTH, player.x));
 }
 
@@ -172,7 +178,7 @@ function updateObstacles(dt) {
     gameState.scrollOffset += scrollDelta;
     gameState.score += Math.floor(scrollDelta / 10);
     
-    // Mover obstáculos hacia abajo
+    // Mover obstáculos
     obstacles.forEach(obs => {
         obs.y += scrollDelta;
     });
@@ -186,25 +192,36 @@ function updateObstacles(dt) {
         spawnObstacle();
         gameState.lastObstacleTime = now;
         
-        // Aumentar dificultad progresivamente
+        // Aumentar dificultad
         if (gameState.score > 500) {
             gameState.obstacleInterval = 1200;
-            gameState.scrollSpeed = 250;
+            gameState.scrollSpeed = 350;
         }
         if (gameState.score > 1000) {
             gameState.obstacleInterval = 900;
-            gameState.scrollSpeed = 300;
+            gameState.scrollSpeed = 400;
         }
         if (gameState.score > 2000) {
             gameState.obstacleInterval = 700;
-            gameState.scrollSpeed = 380;
+            gameState.scrollSpeed = 500;
         }
     }
 }
 
+// Actualizar partículas (efecto de velocidad)
+function updateParticles(dt) {
+    particles.forEach(p => {
+        p.y += (p.speed + gameState.scrollSpeed) * dt;
+        if (p.y > canvas.height) {
+            p.y = -10;
+            p.x = Math.random() * canvas.width;
+        }
+    });
+}
+
 // Colisiones AABB
 function checkCollisions() {
-    const px = player.x + 5; // Hitbox más pequeña que el sprite
+    const px = player.x + 5;
     const py = player.y + 5;
     const pw = PLAYER_WIDTH - 10;
     const ph = PLAYER_HEIGHT - 10;
@@ -215,10 +232,7 @@ function checkCollisions() {
         const ow = obs.width - 6;
         const oh = obs.height - 6;
         
-        if (px < ox + ow &&
-            px + pw > ox &&
-            py < oy + oh &&
-            py + ph > oy) {
+        if (px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy) {
             return true;
         }
     }
@@ -230,28 +244,48 @@ function drawRoad() {
     const roadWidth = canvas.width * ROAD_WIDTH;
     const roadLeft = (canvas.width - roadWidth) / 2;
     
+    // Césped
+    ctx.fillStyle = '#2d5a27';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     // Asfalto
     ctx.fillStyle = '#3d3d3d';
     ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
     
-    // Bordes
-    ctx.fillStyle = '#ff0044';
-    ctx.fillRect(roadLeft - 8, 0, 8, canvas.height);
-    ctx.fillRect(roadLeft + roadWidth, 0, 8, canvas.height);
+    // Bordes de la carretera
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(roadLeft - 6, 0, 6, canvas.height);
+    ctx.fillRect(roadLeft + roadWidth, 0, 6, canvas.height);
     
-    // Líneas de carriles
+    // Líneas de carriles discontinuas
     ctx.fillStyle = '#ffffff';
     const laneWidth = roadWidth / LANE_COUNT;
     
     for (let i = 1; i < LANE_COUNT; i++) {
         const x = roadLeft + laneWidth * i - 2;
-        
-        // Líneas discontinuas con scroll
         roadMarkings.forEach(marking => {
-            let y = (marking.y + gameState.scrollOffset) % (canvas.height + 100);
-            ctx.fillRect(x, y - 50, 4, 30);
+            let y = (marking.y + gameState.scrollOffset * 1.5) % (canvas.height + 60);
+            ctx.fillRect(x, y - 30, 4, 25);
         });
     }
+    
+    // Efecto de velocidad - líneas en los bordes
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    for (let i = 0; i < 8; i++) {
+        let y = ((i * 80) + gameState.scrollOffset * 2) % (canvas.height + 80) - 40;
+        ctx.fillRect(roadLeft - 20, y, 15, 4);
+        ctx.fillRect(roadLeft + roadWidth + 5, y, 15, 4);
+    }
+}
+
+// Dibujar partículas
+function drawParticles() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
 }
 
 // Dibujar jugador
@@ -267,16 +301,11 @@ function drawPlayer() {
     if (sprites.player.complete && sprites.player.naturalHeight > 0) {
         ctx.drawImage(sprites.player, x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
     } else {
-        // Fallback: rectángulo
+        // Fallback
         ctx.fillStyle = '#ff3333';
         ctx.fillRect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
         ctx.fillStyle = '#cc0000';
         ctx.fillRect(x + 5, y + 15, PLAYER_WIDTH - 10, PLAYER_HEIGHT - 30);
-        ctx.fillStyle = '#88ccff';
-        ctx.fillRect(x + 7, y + 20, PLAYER_WIDTH - 14, 12);
-        ctx.fillStyle = '#ffff00';
-        ctx.fillRect(x + 3, y + 3, 8, 5);
-        ctx.fillRect(x + PLAYER_WIDTH - 11, y + 3, 8, 5);
     }
 }
 
@@ -287,8 +316,7 @@ function drawObstacles() {
         
         switch (obs.type) {
             case 'car':
-                // Alternar entre azul y gris
-                sprite = (obs.x % 2 === 0) ? sprites.obstacleCarBlue : sprites.obstacleCarGrey;
+                sprite = (Math.floor(obs.y / 50) % 2 === 0) ? sprites.obstacleCarBlue : sprites.obstacleCarGrey;
                 break;
             case 'cone':
                 sprite = sprites.obstacleCone;
@@ -298,11 +326,10 @@ function drawObstacles() {
                 break;
         }
         
-        // Dibujar sprite si está cargado
         if (sprite && sprite.complete && sprite.naturalHeight > 0) {
             ctx.drawImage(sprite, obs.x, obs.y, obs.width, obs.height);
         } else {
-            // Fallback: rectángulos
+            // Fallback
             switch (obs.type) {
                 case 'car':
                     ctx.fillStyle = '#3366ff';
@@ -334,7 +361,6 @@ function updateScore() {
     scoreEl.textContent = `SCORE: ${gameState.score}m`;
 }
 
-// Game over
 function gameOver() {
     gameState.running = false;
     finalScoreEl.textContent = `Score: ${gameState.score}m`;
@@ -350,8 +376,7 @@ function gameLoop(timestamp) {
     lastTime = timestamp;
     
     // Limpiar
-    ctx.fillStyle = '#2d5a27'; // Césped
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Dibujar carretera
     drawRoad();
@@ -359,8 +384,10 @@ function gameLoop(timestamp) {
     // Actualizar
     updatePlayer(dt);
     updateObstacles(dt);
+    updateParticles(dt);
     
     // Dibujar
+    drawParticles();
     drawObstacles();
     drawPlayer();
     
