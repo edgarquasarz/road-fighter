@@ -296,16 +296,16 @@ function updateEntities(dt) {
     obstacles.forEach(o => o.y += scrollDelta);
     obstacles = obstacles.filter(o => o.y < canvas.height + 100);
     
-    // Mover enemigos (más lentos que el scroll = vienen hacia el jugador)
+    // Mover enemigos (más lentas que el scroll = vienen hacia el jugador)
+    const roadWidth = canvas.width * ROAD_WIDTH;
+    const laneWidth = roadWidth / LANE_COUNT;
+    const roadLeft = (canvas.width - roadWidth) / 2;
+    
     enemies.forEach(e => {
         e.y += scrollDelta - e.speed * dt;
         // IA: cambiar de carril ocasionalmente
         e.changeTimer -= dt;
         if (e.changeTimer <= 0 && Math.random() < 0.3) {
-            const roadWidth = canvas.width * ROAD_WIDTH;
-            const laneWidth = roadWidth / LANE_COUNT;
-            const roadLeft = (canvas.width - roadWidth) / 2;
-            
             const newLane = Math.max(0, Math.min(LANE_COUNT - 1, e.lane + (Math.random() < 0.5 ? -1 : 1)));
             e.targetLane = newLane;
             e.changeTimer = 1 + Math.random() * 2;
