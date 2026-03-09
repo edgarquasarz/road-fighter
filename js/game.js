@@ -63,15 +63,15 @@ window.addEventListener('resize', resizeCanvas);
 // Constantes
 const ROAD_WIDTH = 0.7;
 const LANE_COUNT = 3;
-const PLAYER_WIDTH = 48;
-const PLAYER_HEIGHT = 48;
-const OBSTACLE_WIDTH = 48;
-const OBSTACLE_HEIGHT = 48;
-const PICKUP_SIZE = 32;
-const ENEMY_WIDTH = 48;
-const ENEMY_HEIGHT = 48;
-const OIL_WIDTH = 64;
-const OIL_HEIGHT = 64;
+const PLAYER_WIDTH = 72;
+const PLAYER_HEIGHT = 72;
+const OBSTACLE_WIDTH = 72;
+const OBSTACLE_HEIGHT = 72;
+const PICKUP_SIZE = 48;
+const ENEMY_WIDTH = 72;
+const ENEMY_HEIGHT = 72;
+const OIL_WIDTH = 96;
+const OIL_HEIGHT = 96;
 const BASE_SCROLL_SPEED = 250;
 const MAX_GAS = 100;
 
