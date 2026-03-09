@@ -92,6 +92,7 @@ let roadMarkings = [];
 
 // Inicializar juego
 function init() {
+    console.log('Init game...');
     gameState.running = true;
     gameState.score = 0;
     gameState.scrollOffset = 0;
@@ -125,9 +126,10 @@ function init() {
         });
     }
     
-    lastTime = performance.now();
+    lastTime = null;
     gameOverEl.classList.add('hidden');
     updateScore();
+    console.log('Starting game loop...');
     requestAnimationFrame(gameLoop);
 }
 
@@ -358,6 +360,7 @@ function drawObstacles() {
 }
 
 function updateScore() {
+    console.log('Score:', gameState.score);
     scoreEl.textContent = `SCORE: ${gameState.score}m`;
 }
 
@@ -368,9 +371,16 @@ function gameOver() {
 }
 
 // Bucle principal
-let lastTime = 0;
+let lastTime = null;
 function gameLoop(timestamp) {
     if (!gameState.running) return;
+    
+    // Primer frame
+    if (lastTime === null) {
+        lastTime = timestamp;
+        requestAnimationFrame(gameLoop);
+        return;
+    }
     
     const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
     lastTime = timestamp;
