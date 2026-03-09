@@ -379,18 +379,18 @@ function updateParticles(dt) {
 
 // Colisiones
 function checkCollisions() {
-    // Hitbox más pequeña que el sprite (80% del tamaño)
-    const px = player.x + PLAYER_WIDTH * 0.1;
-    const py = player.y + PLAYER_HEIGHT * 0.1;
-    const pw = PLAYER_WIDTH * 0.8;
-    const ph = PLAYER_HEIGHT * 0.8;
+    // Hitbox más pequeña (60% del sprite) para evitar espacio vacío
+    const px = player.x + PLAYER_WIDTH * 0.2;
+    const py = player.y + PLAYER_HEIGHT * 0.2;
+    const pw = PLAYER_WIDTH * 0.6;
+    const ph = PLAYER_HEIGHT * 0.6;
     
     // Obstáculos
     for (let obs of obstacles) {
-        const ox = obs.x + obs.width * 0.1;
-        const oy = obs.y + obs.height * 0.1;
-        const ow = obs.width * 0.8;
-        const oh = obs.height * 0.8;
+        const ox = obs.x + obs.width * 0.2;
+        const oy = obs.y + obs.height * 0.2;
+        const ow = obs.width * 0.6;
+        const oh = obs.height * 0.6;
         if (px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy) {
             return 'obstacle';
         }
@@ -398,10 +398,10 @@ function checkCollisions() {
     
     // Enemigos
     for (let e of enemies) {
-        const ex = e.x + e.width * 0.1;
-        const ey = e.y + e.height * 0.1;
-        const ew = e.width * 0.8;
-        const eh = e.height * 0.8;
+        const ex = e.x + e.width * 0.2;
+        const ey = e.y + e.height * 0.2;
+        const ew = e.width * 0.6;
+        const eh = e.height * 0.6;
         if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
             return 'enemy';
         }
@@ -410,8 +410,8 @@ function checkCollisions() {
     // Pickups de gasolina
     for (let i = pickups.length - 1; i >= 0; i--) {
         const p = pickups[i];
-        if (px < p.x + p.width * 0.8 && px + pw > p.x + p.width * 0.2 &&
-            py < p.y + p.height * 0.8 && py + ph > p.y + p.height * 0.2) {
+        if (px < p.x + p.width * 0.6 && px + pw > p.x + p.width * 0.4 &&
+            py < p.y + p.height * 0.6 && py + ph > p.y + p.height * 0.4) {
             gameState.gas = Math.min(MAX_GAS, gameState.gas + 25);
             pickups.splice(i, 1);
         }
@@ -419,8 +419,8 @@ function checkCollisions() {
     
     // Aceite
     for (let o of oilSlicks) {
-        if (px < o.x + o.width * 0.8 && px + pw > o.x + o.width * 0.2 &&
-            py < o.y + o.height * 0.8 && py + ph > o.y + o.height * 0.2) {
+        if (px < o.x + o.width * 0.6 && px + pw > o.x + o.width * 0.4 &&
+            py < o.y + o.height * 0.6 && py + ph > o.y + o.height * 0.4) {
             if (!player.slipping) {
                 player.slipping = true;
                 player.slipTimer = 0.5;
