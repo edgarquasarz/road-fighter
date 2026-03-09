@@ -63,8 +63,8 @@ window.addEventListener('resize', resizeCanvas);
 // Constantes
 const ROAD_WIDTH = 0.7;
 const LANE_COUNT = 3;
-const PLAYER_WIDTH = 64;
-const PLAYER_HEIGHT = 96;
+const PLAYER_WIDTH = 48;
+const PLAYER_HEIGHT = 48;
 const OBSTACLE_WIDTH = 48;
 const OBSTACLE_HEIGHT = 48;
 const PICKUP_SIZE = 32;
