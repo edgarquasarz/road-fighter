@@ -546,10 +546,22 @@ function updateUI() {
     if (!gameState.running) return;
     try {
         scoreEl.textContent = `SCORE: ${gameState.score}m`;
-        if (gasEl) {
-            const gasPercent = Math.max(0, gameState.gas);
-            gasEl.textContent = `GAS: ${Math.floor(gasPercent)}%`;
-        }
+        
+        // Update gas segments
+        const segments = document.querySelectorAll('.gas-segment');
+        const gasPercent = Math.max(0, gameState.gas);
+        const activeSegments = Math.ceil(gasPercent / 20);
+        
+        segments.forEach((seg, i) => {
+            seg.classList.remove('active', 'low');
+            if (i < activeSegments) {
+                if (gasPercent <= 20) {
+                    seg.classList.add('low');
+                } else {
+                    seg.classList.add('active');
+                }
+            }
+        });
     } catch(e) {
         console.error('UI update error:', e);
     }

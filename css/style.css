@@ -144,3 +144,36 @@ body {
         display: none;
     }
 }
+
+#gas-container {
+    display: inline-block;
+    margin-left: 15px;
+    vertical-align: middle;
+}
+
+#gas-bar {
+    display: flex;
+    gap: 3px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid #444;
+}
+
+.gas-segment {
+    width: 12px;
+    height: 20px;
+    background: #333;
+    border-radius: 2px;
+    transition: background 0.2s;
+}
+
+.gas-segment.active {
+    background: #00aaff;
+    box-shadow: 0 0 8px #00aaff;
+}
+
+.gas-segment.low {
+    background: #ff4444;
+    box-shadow: 0 0 8px #ff4444;
+}
