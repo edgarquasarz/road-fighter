@@ -4,7 +4,7 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
-const gasEl = document.getElementById('gas');
+//const gasEl = document.getElementById('gas');
 const gameOverEl = document.getElementById('game-over');
 const finalScoreEl = document.getElementById('final-score');
 const restartBtn = document.getElementById('restart-btn');
@@ -641,20 +641,5 @@ touchRight?.addEventListener('touchstart', (e) => { e.preventDefault(); keys.rig
 touchRight?.addEventListener('touchend', () => keys.right = false);
 
 restartBtn.addEventListener('click', init);
-
-// Añadir HUD de gas al HTML si no existe
-function ensureGasElement() {
-    if (!document.getElementById('gas')) {
-        const hud = document.getElementById('hud');
-        if (hud) {
-            const gasEl = document.createElement('span');
-            gasEl.id = 'gas';
-            gasEl.style.marginLeft = '20px';
-            gasEl.textContent = 'GAS: 100%';
-            hud.appendChild(gasEl);
-        }
-    }
-}
-ensureGasElement();
 
 init();
